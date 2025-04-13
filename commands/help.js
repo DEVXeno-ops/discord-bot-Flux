@@ -19,10 +19,14 @@ module.exports = {
       const moderation = [
         '**/kick**: Remove a member from the server\n*Example*: `/kick @User Spamming`',
         '**/ban**: Ban a member from the server\n*Example*: `/ban @User Rule violation`',
+        '**/unban**: Unban a member\n*Example*: `/unban 123456789012345678 Mistake`',
         '**/mute**: Silence a member for a time\n*Example*: `/mute @User 10m Disruptive`',
         '**/unmute**: Restore a member’s ability to chat\n*Example*: `/unmute @User Pardoned`',
         '**/warn**: Send a warning to a member\n*Example*: `/warn @User Inappropriate behavior`',
+        '**/warnings**: View a member’s warning history\n*Example*: `/warnings @User`',
         '**/clear**: Delete recent messages\n*Example*: `/clear 10`',
+        '**/addrole**: Assign a role to a member\n*Example*: `/addrole @User Moderator`',
+        '**/removerole**: Remove a role from a member\n*Example*: `/removerole @User Moderator`',
         '**/lock**: Prevent messages in a channel\n*Example*: `/lock #general Spam control`',
         '**/unlock**: Reopen a channel for messages\n*Example*: `/unlock #general`',
         '**/slowmode**: Limit how often users can send messages\n*Example*: `/slowmode 10 #general`',
@@ -45,7 +49,7 @@ module.exports = {
               { name: '🛡️ Moderation Commands', value: moderation, inline: false },
               { name: '🚫 Blacklist Commands', value: blacklist, inline: false }
             )
-            .setDescription('Use these commands to manage the server. Need more info? Try an example!')
+            .setDescription('Use these commands to manage your server. Try the examples to get started!')
             .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
