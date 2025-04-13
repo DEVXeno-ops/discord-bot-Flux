@@ -2,4 +2,5 @@
 node_modules/
 logs/
 blacklist.json
+warnings.json
 *.log
