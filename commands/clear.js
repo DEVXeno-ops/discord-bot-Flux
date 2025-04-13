@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const logger = require('../logger');
 
 module.exports = {
@@ -22,15 +22,30 @@ module.exports = {
 
       if (!channel.isTextBased()) {
         logger.warn(`Attempted clear in non-text channel by ${interaction.user.tag}`);
-        return interaction.reply({ content: 'This command can only be used in text channels!', ephemeral: true });
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❗ Error')
+          .setDescription('This command can only be used in text channels!')
+          .setTimestamp();
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       await channel.bulkDelete(amount, true);
       logger.info(`Deleted ${amount} messages in ${channel.name} by ${interaction.user.tag}`);
-      await interaction.reply({ content: `✅ Deleted **${amount}** messages successfully!`, ephemeral: true });
+      const successEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('✅ Messages Cleared')
+        .setDescription(`Deleted **${amount}** messages successfully!`)
+        .setTimestamp();
+      await interaction.reply({ embeds: [successEmbed], ephemeral: true });
     } catch (error) {
       logger.error(`Error in clear command`, error);
-      await interaction.reply({ content: 'An error occurred while deleting messages!', ephemeral: true });
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('❗ Error')
+        .setDescription('An error occurred while deleting messages!')
+        .setTimestamp();
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
   },
 };

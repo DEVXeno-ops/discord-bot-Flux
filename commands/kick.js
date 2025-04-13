@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const logger = require('../logger');
 
 module.exports = {
@@ -27,20 +27,43 @@ module.exports = {
 
       if (!member) {
         logger.warn(`Member ${target.tag} not found in the server`);
-        return interaction.reply({ content: 'This member is not in the server!', ephemeral: true });
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❗ Error')
+          .setDescription('This member is not in the server!')
+          .setTimestamp();
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       if (!member.kickable) {
         logger.warn(`Cannot kick ${target.tag}: Higher or equal permissions`);
-        return interaction.reply({ content: 'I cannot kick this member! They may have higher or equal permissions', ephemeral: true });
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❗ Error')
+          .setDescription('I cannot kick this member! They may have higher or equal permissions')
+          .setTimestamp();
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       await member.kick(reason);
       logger.info(`Kicked ${target.tag} by ${interaction.user.tag}, reason: ${reason}`);
-      await interaction.reply(`✅ Kicked **${target.tag}** from the server! Reason: ${reason}`);
+      const successEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('✅ Member Kicked')
+        .addFields(
+          { name: 'User', value: `${target.tag}`, inline: true },
+          { name: 'Reason', value: reason }
+        )
+        .setTimestamp();
+      await interaction.reply({ embeds: [successEmbed] });
     } catch (error) {
       logger.error(`Error in kick command for ${interaction.options.getUser('user')?.tag}`, error);
-      throw error;
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('❗ Error')
+        .setDescription('An error occurred while kicking the member!')
+        .setTimestamp();
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
   },
 };

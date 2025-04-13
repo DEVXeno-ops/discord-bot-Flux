@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const logger = require('../logger');
 
 module.exports = {
@@ -8,11 +8,21 @@ module.exports = {
   async execute(interaction) {
     try {
       const latency = Date.now() - interaction.createdTimestamp;
-      await interaction.reply(`Pong! Latency: ${latency}ms`);
       logger.info(`Ping command by ${interaction.user.tag}, latency: ${latency}ms`);
+      const pingEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('==')
+        .setDescription(`Latency: **${latency}ms**`)
+        .setTimestamp();
+      await interaction.reply({ embeds: [pingEmbed] });
     } catch (error) {
       logger.error('Error in ping command', error);
-      throw error;
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('❗ Error')
+        .setDescription('An error occurred while checking latency!')
+        .setTimestamp();
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
   },
 };

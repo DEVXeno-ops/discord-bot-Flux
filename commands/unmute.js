@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const logger = require('../logger');
 
 module.exports = {
@@ -27,25 +27,53 @@ module.exports = {
 
       if (!member) {
         logger.warn(`Member ${target.tag} not found in the server`);
-        return interaction.reply({ content: 'This member is not in the server!', ephemeral: true });
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❗ Error')
+          .setDescription('This member is not in the server!')
+          .setTimestamp();
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       if (!member.isCommunicationDisabled()) {
         logger.warn(`Member ${target.tag} is not muted`);
-        return interaction.reply({ content: 'This member is not currently muted!', ephemeral: true });
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❗ Error')
+          .setDescription('This member is not currently muted!')
+          .setTimestamp();
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       if (!member.moderatable) {
         logger.warn(`Cannot manage ${target.tag}: Higher or equal permissions`);
-        return interaction.reply({ content: 'I cannot manage this member! They may have higher or equal permissions', ephemeral: true });
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setTitle('❗ Error')
+          .setDescription('I cannot manage this member! They may have higher or equal permissions')
+          .setTimestamp();
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
 
       await member.timeout(null, reason);
       logger.info(`Unmuted ${target.tag} by ${interaction.user.tag}, reason: ${reason}`);
-      await interaction.reply(`✅ Unmuted **${target.tag}** successfully! Reason: ${reason}`);
+      const successEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('✅ Member Unmuted')
+        .addFields(
+          { name: 'User', value: `${target.tag}`, inline: true },
+          { name: 'Reason', value: reason }
+        )
+        .setTimestamp();
+      await interaction.reply({ embeds: [successEmbed] });
     } catch (error) {
       logger.error(`Error in unmute command for ${interaction.options.getUser('user')?.tag}`, error);
-      throw error;
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('❗ Error')
+        .setDescription('An error occurred while unmuting the member!')
+        .setTimestamp();
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
   },
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const logger = require('../logger');
 
 module.exports = {
@@ -10,11 +10,22 @@ module.exports = {
       const commandList = interaction.client.commands
         .map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`)
         .join('\n') || 'No commands available';
-      await interaction.reply(`📜 Command List:\n${commandList}`);
       logger.info(`Help command by ${interaction.user.tag}`);
+      const helpEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('📜 Command List')
+        .setDescription(commandList)
+        .setFooter({ text: 'Bot v1.0.0' })
+        .setTimestamp();
+      await interaction.reply({ embeds: [helpEmbed] });
     } catch (error) {
       logger.error('Error in help command', error);
-      throw error;
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('❗ Error')
+        .setDescription('An error occurred while listing commands!')
+        .setTimestamp();
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
   },
 };

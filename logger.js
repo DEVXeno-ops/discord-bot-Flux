@@ -2,13 +2,11 @@ const { createLogger, format, transports } = require('winston');
 const path = require('path');
 const fs = require('fs');
 
-// Create logs/ directory if it doesn't exist
 const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
 }
 
-// Configure Logger
 const logger = createLogger({
   level: 'info',
   format: format.combine(
@@ -21,7 +19,7 @@ const logger = createLogger({
   transports: [
     new transports.File({
       filename: path.join(logsDir, 'error.log'),
-      maxsize: 5242880, // 5MB
+      maxsize: 5242880,
       maxFiles: 5,
     }),
     new transports.Console(),

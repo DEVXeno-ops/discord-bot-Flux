@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, Collection, IntentsBitField } = require('discord.js');
+const { Client, Collection, IntentsBitField, EmbedBuilder } = require('discord.js');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
 const fs = require('fs');
@@ -8,7 +8,6 @@ const logger = require('./logger');
 
 const { TOKEN, CLIENT_ID } = process.env;
 
-// Check initial configuration
 logger.info('Starting bot configuration check...');
 if (!TOKEN) {
   logger.error('TOKEN not found in .env. Please set TOKEN.');
@@ -19,7 +18,6 @@ if (!CLIENT_ID) {
   process.exit(1);
 }
 
-// Check commands/ directory
 const commandsDir = path.join(__dirname, 'commands');
 if (!fs.existsSync(commandsDir)) {
   logger.error('commands/ directory not found. Please create it and add command files.');
@@ -95,12 +93,16 @@ client.on('interactionCreate', async interaction => {
     await command.execute(interaction);
   } catch (error) {
     logger.error(`Error in command ${interaction.commandName}`, error);
-    const replyContent = { content: 'An error occurred while executing the command!', ephemeral: true };
+    const errorEmbed = new EmbedBuilder()
+      .setColor('#ff0000')
+      .setTitle('❗ Error')
+      .setDescription('An error occurred while executing the command!')
+      .setTimestamp();
     try {
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(replyContent);
+        await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
       } else {
-        await interaction.reply(replyContent);
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       }
     } catch (replyError) {
       logger.error('Unable to reply to interaction', replyError);
@@ -108,7 +110,6 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Handle general errors
 client.on('error', error => {
   logger.error('Client error occurred', error);
 });
