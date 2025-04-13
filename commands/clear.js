@@ -15,37 +15,77 @@ module.exports = {
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .setDMPermission(false),
+  cooldown: 5,
   async execute(interaction) {
-    try {
-      const amount = interaction.options.getInteger('amount');
-      const channel = interaction.channel;
+    const amount = interaction.options.getInteger('amount');
 
-      if (!channel.isTextBased()) {
-        logger.warn(`Attempted clear in non-text channel by ${interaction.user.tag}`);
-        const errorEmbed = new EmbedBuilder()
-          .setColor('#ff0000')
-          .setTitle('❗ Error')
-          .setDescription('This command can only be used in text channels!')
-          .setTimestamp();
-        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+    try {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+        logger.warn(`Unauthorized clear attempt by ${interaction.user.tag}`);
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#ff0000')
+              .setTitle('❗ Troublemaker!')
+              .setDescription("You don't have permission to clear messages!")
+              .setTimestamp(),
+          ],
+          ephemeral: true,
+        });
       }
 
-      await channel.bulkDelete(amount, true);
-      logger.info(`Deleted ${amount} messages in ${channel.name} by ${interaction.user.tag}`);
-      const successEmbed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle('✅ Messages Cleared')
-        .setDescription(`Deleted **${amount}** messages successfully!`)
-        .setTimestamp();
-      await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+      if (!interaction.guild.members.me.permissionsIn(interaction.channel).has(PermissionFlagsBits.ManageMessages)) {
+        logger.warn(`Bot lacks Manage Messages permission in ${interaction.channel.name} for clear by ${interaction.user.tag}`);
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#ff0000')
+              .setTitle('❗ Troublemaker!')
+              .setDescription("I don't have permission to clear messages in this channel!")
+              .setTimestamp(),
+          ],
+          ephemeral: true,
+        });
+      }
+
+      if (!interaction.channel.isTextBased()) {
+        logger.warn(`Clear attempted in non-text channel by ${interaction.user.tag}`);
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#ff0000')
+              .setTitle('❗ Troublemaker!')
+              .setDescription('This command only works in text channels.')
+              .setTimestamp(),
+          ],
+          ephemeral: true,
+        });
+      }
+
+      const deleted = await interaction.channel.bulkDelete(amount, true);
+      logger.info(`Cleared ${deleted.size} messages in ${interaction.channel.name} by ${interaction.user.tag}`);
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('🗑️ Messages Cleared')
+            .setDescription(`Deleted ${deleted.size} message(s).`)
+            .setTimestamp(),
+        ],
+        ephemeral: true,
+      });
     } catch (error) {
-      logger.error(`Error in clear command`, error);
-      const errorEmbed = new EmbedBuilder()
-        .setColor('#ff0000')
-        .setTitle('❗ Error')
-        .setDescription('An error occurred while deleting messages!')
-        .setTimestamp();
-      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+      logger.error(`Error in clear by ${interaction.user.tag}`, error);
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('❗ Troublemaker!')
+            .setDescription('Failed to clear messages.')
+            .setTimestamp(),
+        ],
+        ephemeral: true,
+      });
     }
   },
 };
