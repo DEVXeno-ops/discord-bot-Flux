@@ -10,10 +10,13 @@ module.exports = {
     .setName('unblacklist')
     .setDescription('Remove a user from the blacklist and unban them')
     .addStringOption(option =>
-      option.setName('user_id').setDescription('The ID of the user to unblacklist').setRequired(true)
+      option
+        .setName('user_id')
+        .setDescription('The user ID to unblacklist (e.g., 123456789012345678)')
+        .setRequired(true)
     )
     .addStringOption(option =>
-      option.setName('reason').setDescription('Reason for unblacklisting').setRequired(false)
+      option.setName('reason').setDescription('Why are they unblacklisted?').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .setDMPermission(false),
@@ -30,8 +33,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("You don't have permission to unblacklist users!")
+              .setTitle('❗ Oops!')
+              .setDescription("You need **Ban Members** permission to use this command.")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -44,23 +48,29 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("I don't have permission to manage bans!")
+              .setTitle('❗ Oops!')
+              .setDescription(
+                "I need **Ban Members** permission to unblacklist users. Please update my role in Server Settings > Roles."
+              )
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
         });
       }
 
-      // Validate user ID
+      // Validate ID
       if (!/^\d{17,19}$/.test(userId)) {
         logger.warn(`Invalid user ID ${userId} by ${interaction.user.tag}`);
         return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription('Invalid user ID! Use a numeric ID (e.g., 123456789012345678).')
+              .setTitle('❗ Oops!')
+              .setDescription(
+                'Please enter a valid user ID (e.g., 123456789012345678). Find it via `/listblacklist` or user profile.'
+              )
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -79,8 +89,9 @@ module.exports = {
             embeds: [
               new EmbedBuilder()
                 .setColor('#ff0000')
-                .setTitle('❗ Troublemaker!')
-                .setDescription('No blacklist entries exist.')
+                .setTitle('❗ Oops!')
+                .setDescription('No users are currently blacklisted.')
+                .setFooter({ text: 'Bot v1.0.0' })
                 .setTimestamp(),
             ],
             ephemeral: true,
@@ -89,7 +100,7 @@ module.exports = {
         throw error;
       }
 
-      // Check if user is blacklisted
+      // Check blacklist
       const entry = blacklist.find(e => e.id === userId);
       if (!entry) {
         logger.info(`User ID ${userId} not blacklisted, attempted by ${interaction.user.tag}`);
@@ -97,8 +108,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription('This user is not blacklisted.')
+              .setTitle('❗ Oops!')
+              .setDescription(`User ID ${userId} is not on the blacklist. Check with /listblacklist.`)
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -118,9 +130,8 @@ module.exports = {
         unbanned = true;
       } catch (error) {
         if (error.code === 10026) {
-          logger.info(`No ban found for user ID ${userId} during unblacklist by ${interaction.user.tag}`);
+          logger.info(`No ban found for user ID ${userId} during unblacklist`);
         } else {
-          // Revert blacklist change if unban fails
           blacklist.push(entry);
           await fs.writeFile(blacklistFile, JSON.stringify(blacklist, null, 2));
           logger.warn(`Reverted blacklist removal for ID ${userId} due to unban failure`);
@@ -135,24 +146,24 @@ module.exports = {
             .setTitle('✅ User Unblacklisted')
             .addFields(
               { name: 'User ID', value: userId, inline: true },
-              { name: 'Reason', value: reason, inline: true },
-              {
-                name: 'Unbanned',
-                value: unbanned ? 'Yes' : 'No (was not banned)',
-                inline: true,
-              }
+              { name: 'Previous Reason', value: entry.reason, inline: true },
+              { name: 'Unban Reason', value: reason, inline: true },
+              { name: 'Status', value: unbanned ? 'Unbanned from server' : 'Was not banned', inline: true },
+              { name: 'Moderator', value: interaction.user.tag, inline: true }
             )
+            .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
       });
     } catch (error) {
-      logger.error(`Error in unblacklist for ID ${userId} by ${interaction.user.tag}`, error);
+      logger.error(`Error unblacklisting ID ${userId} by ${interaction.user.tag}`, error);
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor('#ff0000')
-            .setTitle('❗ Troublemaker!')
-            .setDescription('Failed to unblacklist the user.')
+            .setTitle('❗ Oops!')
+            .setDescription('An error occurred while unblacklisting. Please try again.')
+            .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
         ephemeral: true,

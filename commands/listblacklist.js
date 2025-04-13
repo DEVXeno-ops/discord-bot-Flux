@@ -8,7 +8,7 @@ const blacklistFile = path.join(__dirname, '../blacklist.json');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('listblacklist')
-    .setDescription('List all blacklisted users')
+    .setDescription('View all blacklisted users')
     .addIntegerOption(option =>
       option
         .setName('page')
@@ -31,8 +31,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("You don't have permission to view the blacklist!")
+              .setTitle('❗ Oops!')
+              .setDescription("You need **Ban Members** permission to view the blacklist.")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -52,7 +53,8 @@ module.exports = {
               new EmbedBuilder()
                 .setColor('#0099ff')
                 .setTitle('📜 Blacklist')
-                .setDescription('The blacklist is empty.')
+                .setDescription('No users are currently blacklisted.')
+                .setFooter({ text: 'Bot v1.0.0' })
                 .setTimestamp(),
             ],
           });
@@ -67,7 +69,8 @@ module.exports = {
             new EmbedBuilder()
               .setColor('#0099ff')
               .setTitle('📜 Blacklist')
-              .setDescription('The blacklist is empty.')
+              .setDescription('No users are currently blacklisted.')
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
         });
@@ -81,8 +84,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription(`Invalid page number. There are only ${totalPages} page(s).`)
+              .setTitle('❗ Oops!')
+              .setDescription(`There are only ${totalPages} page(s). Try a lower page number.`)
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -93,28 +97,36 @@ module.exports = {
       const end = start + perPage;
       const entries = blacklist.slice(start, end).map(
         e =>
-          `**ID**: ${e.id}\n**Tag**: ${e.tag}\n**Reason**: ${e.reason}\n**Moderator**: ${e.moderator}\n**Time**: ${e.timestamp}`
+          `**ID**: ${e.id}\n**Tag**: ${e.tag}\n**Reason**: ${e.reason}\n**Moderator**: ${e.moderator}\n**Blacklisted**: <t:${Math.floor(new Date(e.timestamp) / 1000)}:R>`
       );
 
-      logger.info(`Blacklist page ${page} viewed by ${interaction.user.tag}`);
+      logger.info(`Viewed blacklist page ${page} by ${interaction.user.tag}`);
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('📜 Blacklist')
             .setDescription(entries.join('\n\n') || 'No entries on this page.')
-            .setFooter({ text: `Page ${page} of ${totalPages} | Total: ${blacklist.length}` })
+            .addFields({
+              name: 'Total Blacklisted',
+              value: `${blacklist.length} user(s)`,
+              inline: true,
+            })
+            .setFooter({
+              text: `Page ${page} of ${totalPages} | Use /unblacklist to remove | Bot v1.0.0`,
+            })
             .setTimestamp(),
         ],
       });
     } catch (error) {
-      logger.error(`Error in listblacklist page ${page} by ${interaction.user.tag}`, error);
+      logger.error(`Error listing blacklist page ${page} by ${interaction.user.tag}`, error);
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor('#ff0000')
-            .setTitle('❗ Troublemaker!')
-            .setDescription('Failed to list the blacklist.')
+            .setTitle('❗ Oops!')
+            .setDescription('An error occurred while viewing the blacklist.')
+            .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
         ephemeral: true,

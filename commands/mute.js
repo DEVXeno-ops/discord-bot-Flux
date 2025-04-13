@@ -4,18 +4,18 @@ const logger = require('../logger');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mute')
-    .setDescription('Mute a member in the server')
+    .setDescription('Temporarily silence a member')
     .addUserOption(option =>
       option.setName('user').setDescription('The member to mute').setRequired(true)
     )
     .addStringOption(option =>
       option
         .setName('duration')
-        .setDescription('Duration (e.g., 10m, 1h, 1d)')
+        .setDescription('How long? (e.g., 10s, 5m, 1h, 1d)')
         .setRequired(true)
     )
     .addStringOption(option =>
-      option.setName('reason').setDescription('Reason for the mute').setRequired(false)
+      option.setName('reason').setDescription('Why are they muted?').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .setDMPermission(false),
@@ -32,8 +32,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("You don't have permission to mute members!")
+              .setTitle('❗ Oops!')
+              .setDescription("You need **Moderate Members** permission to mute users.")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -46,8 +47,11 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("I don't have permission to mute members!")
+              .setTitle('❗ Oops!')
+              .setDescription(
+                "I need **Moderate Members** permission to mute users. Check my role in Server Settings > Roles."
+              )
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -61,8 +65,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription('This user is not in the server.')
+              .setTitle('❗ Oops!')
+              .setDescription(`${target.tag} is not in this server.`)
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -75,10 +80,11 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
+              .setTitle('❗ Oops!')
               .setDescription(
-                `I can't mute ${target.tag}. Their role is likely higher than mine.`
+                `I can’t mute ${target.tag} (ID: ${target.id}). My role must be higher than theirs in Server Settings > Roles.`
               )
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -91,8 +97,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("You can't mute yourself!")
+              .setTitle('❗ Oops!')
+              .setDescription("You can’t mute yourself!")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -106,8 +113,11 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription('Invalid duration! Use e.g., 10m, 1h, 1d.')
+              .setTitle('❗ Oops!')
+              .setDescription(
+                'Invalid duration format. Use a number followed by s (seconds), m (minutes), h (hours), or d (days). Example: `10m`'
+              )
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -129,8 +139,24 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription('Mute duration cannot exceed 28 days.')
+              .setTitle('❗ Oops!')
+              .setDescription('Mute duration cannot exceed 28 days. Try a shorter time.')
+              .setFooter({ text: 'Bot v1.0.0' })
+              .setTimestamp(),
+          ],
+          ephemeral: true,
+        });
+      }
+
+      if (ms < 1000) {
+        logger.info(`Duration ${duration} too short for mute by ${interaction.user.tag}`);
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#ff0000')
+              .setTitle('❗ Oops!')
+              .setDescription('Mute duration must be at least 1 second.')
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -145,21 +171,24 @@ module.exports = {
             .setColor('#0099ff')
             .setTitle('🔇 Member Muted')
             .addFields(
-              { name: 'User', value: `${target.tag} (${target.id})`, inline: true },
+              { name: 'User', value: `${target.tag} (ID: ${target.id})`, inline: true },
               { name: 'Duration', value: duration, inline: true },
-              { name: 'Reason', value: reason, inline: true }
+              { name: 'Reason', value: reason, inline: true },
+              { name: 'Moderator', value: interaction.user.tag, inline: true }
             )
+            .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
       });
     } catch (error) {
-      logger.error(`Error in mute for ${target.tag} by ${interaction.user.tag}`, error);
+      logger.error(`Error muting ${target.tag} by ${interaction.user.tag}`, error);
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor('#ff0000')
-            .setTitle('❗ Troublemaker!')
-            .setDescription('Failed to mute the member.')
+            .setTitle('❗ Oops!')
+            .setDescription('An error occurred while muting. Please try again.')
+            .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
         ephemeral: true,

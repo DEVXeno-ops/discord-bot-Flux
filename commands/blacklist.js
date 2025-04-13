@@ -8,12 +8,12 @@ const blacklistFile = path.join(__dirname, '../blacklist.json');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('blacklist')
-    .setDescription('Ban and blacklist a user from the server')
+    .setDescription('Ban and blacklist a user, preventing rejoining')
     .addUserOption(option =>
       option.setName('user').setDescription('The user to blacklist').setRequired(true)
     )
     .addStringOption(option =>
-      option.setName('reason').setDescription('Reason for the blacklist').setRequired(false)
+      option.setName('reason').setDescription('Why are they blacklisted?').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .setDMPermission(false),
@@ -30,8 +30,9 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("You don't have permission to blacklist users!")
+              .setTitle('❗ Oops!')
+              .setDescription("You need **Ban Members** permission to use this command.")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -44,36 +45,42 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("I don't have permission to ban members!")
+              .setTitle('❗ Oops!')
+              .setDescription(
+                "I need **Ban Members** permission to blacklist users. Please update my role in Server Settings > Roles."
+              )
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
         });
       }
 
-      // Prevent self-targeting or bot
+      // Input validation
       if (target.id === interaction.user.id) {
         logger.warn(`User ${interaction.user.tag} attempted to blacklist themselves`);
         return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
+              .setTitle('❗ Oops!')
               .setDescription("You can't blacklist yourself!")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
         });
       }
+
       if (target.bot) {
         logger.warn(`User ${interaction.user.tag} attempted to blacklist bot ${target.tag}`);
         return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription("You can't blacklist a bot!")
+              .setTitle('❗ Oops!')
+              .setDescription("Bots can't be blacklisted.")
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -89,15 +96,16 @@ module.exports = {
         if (error.code !== 'ENOENT') throw error;
       }
 
-      // Check if already blacklisted
+      // Check existing blacklist
       if (blacklist.some(e => e.id === target.id)) {
         logger.info(`User ${target.tag} already blacklisted, attempted by ${interaction.user.tag}`);
         return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#ff0000')
-              .setTitle('❗ Troublemaker!')
-              .setDescription('This user is already blacklisted.')
+              .setTitle('❗ Oops!')
+              .setDescription(`${target.tag} (ID: ${target.id}) is already blacklisted.`)
+              .setFooter({ text: 'Bot v1.0.0' })
               .setTimestamp(),
           ],
           ephemeral: true,
@@ -110,15 +118,16 @@ module.exports = {
         logger.info(`Banned ${target.tag} (ID: ${target.id}) by ${interaction.user.tag}`);
       } catch (error) {
         if (error.code === 50013) {
-          logger.warn(`Failed to ban ${target.tag}: Role hierarchy or permissions issue`);
+          logger.warn(`Failed to ban ${target.tag}: Insufficient permissions`);
           return interaction.reply({
             embeds: [
               new EmbedBuilder()
                 .setColor('#ff0000')
-                .setTitle('❗ Troublemaker!')
+                .setTitle('❗ Oops!')
                 .setDescription(
-                  `I can't ban ${target.tag}. Ensure my role is above theirs in the server settings.`
+                  `I can't blacklist ${target.tag} (ID: ${target.id}). My role must be higher than theirs in Server Settings > Roles.`
                 )
+                .setFooter({ text: 'Bot v1.0.0' })
                 .setTimestamp(),
             ],
             ephemeral: true,
@@ -144,20 +153,23 @@ module.exports = {
             .setColor('#0099ff')
             .setTitle('🚫 User Blacklisted')
             .addFields(
-              { name: 'User', value: `${target.tag} (${target.id})`, inline: true },
-              { name: 'Reason', value: reason, inline: true }
+              { name: 'User', value: `${target.tag} (ID: ${target.id})`, inline: true },
+              { name: 'Reason', value: reason, inline: true },
+              { name: 'Moderator', value: interaction.user.tag, inline: true }
             )
+            .setFooter({ text: 'Use /unblacklist to remove | Bot v1.0.0' })
             .setTimestamp(),
         ],
       });
     } catch (error) {
-      logger.error(`Error in blacklist for ${target.tag} by ${interaction.user.tag}`, error);
+      logger.error(`Error blacklisting ${target.tag} by ${interaction.user.tag}`, error);
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor('#ff0000')
-            .setTitle('❗ Troublemaker!')
-            .setDescription('Failed to blacklist the user.')
+            .setTitle('❗ Oops!')
+            .setDescription('An error occurred while blacklisting. Please try again.')
+            .setFooter({ text: 'Bot v1.0.0' })
             .setTimestamp(),
         ],
         ephemeral: true,

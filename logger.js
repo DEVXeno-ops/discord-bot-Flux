@@ -12,7 +12,7 @@ const logger = createLogger({
     format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     format.errors({ stack: true }),
     format.printf(({ timestamp, level, message, stack }) => {
-      return `${timestamp} [${level.toUpperCase()}]: ${message}${stack ? `\n${stack}` : ''}`;
+      return `${timestamp} ${level.toUpperCase().padEnd(5)}: ${message}${stack ? `\n  Stack: ${stack}` : ''}`;
     })
   ),
   transports: [
