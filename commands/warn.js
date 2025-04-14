@@ -1,154 +1,110 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const fs = require('fs').promises;
-const path = require('path');
-const logger = require('../logger');
+// commands/warn.js
+// Issues warnings with a modal for reason input
 
-const warningsFile = path.join(__dirname, '../warnings.json');
+const { SlashCommandBuilder, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const fs = require('fs/promises');
+const { createSuccessEmbed, createErrorEmbed, checkPermissions } = require('../utils/embeds');
+const logger = require('../logger');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warn')
-    .setDescription('Issue a warning to a member')
+    .setDescription('Warn a member for rule-breaking')
     .addUserOption(option =>
-      option.setName('user').setDescription('The member to warn').setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName('reason').setDescription('Why are they warned?').setRequired(false)
+      option.setName('user').setDescription('Who to warn').setRequired(true)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .setDMPermission(false),
   cooldown: 5,
   async execute(interaction) {
     const target = interaction.options.getUser('user');
-    const reason = interaction.options.getString('reason')?.slice(0, 512) || 'No reason provided';
 
     try {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-        logger.warn(`Unauthorized warn attempt by ${interaction.user.tag} for ${target.tag}`);
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('❗ Oops!')
-              .setDescription("You need **Moderate Members** permission to warn members.")
-              .setFooter({ text: 'Bot v1.0.0' })
-              .setTimestamp(),
-          ],
-          ephemeral: true,
-        });
-      }
+      // Check permissions
+      const permCheck = checkPermissions(interaction.member, PermissionFlagsBits.ModerateMembers, 'warn', logger);
+      if (permCheck) return interaction.reply(permCheck);
 
-      const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-      if (!member) {
-        logger.info(`User ${target.tag} not found in guild for warn by ${interaction.user.tag}`);
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('❗ Oops!')
-              .setDescription(`${target.tag} is not in this server.`)
-              .setFooter({ text: 'Bot v1.0.0' })
-              .setTimestamp(),
-          ],
-          ephemeral: true,
-        });
-      }
-
+      // Validate target
       if (target.bot) {
-        logger.warn(`Attempted to warn bot ${target.tag} by ${interaction.user.tag}`);
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('❗ Oops!')
-              .setDescription("You can't warn bots.")
-              .setFooter({ text: 'Bot v1.0.0' })
-              .setTimestamp(),
-          ],
-          ephemeral: true,
-        });
+        return interaction.reply(
+          createErrorEmbed({
+            description: 'Cannot warn bots.',
+          })
+        );
       }
-
       if (target.id === interaction.user.id) {
-        logger.warn(`User ${interaction.user.tag} attempted to warn themselves`);
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('❗ Oops!')
-              .setDescription("You can't warn yourself!")
-              .setFooter({ text: 'Bot v1.0.0' })
-              .setTimestamp(),
-          ],
-          ephemeral: true,
-        });
+        return interaction.reply(
+          createErrorEmbed({
+            description: 'Cannot warn yourself.',
+          })
+        );
       }
 
-      // Store warning
-      let warningsData = {};
-      try {
-        const data = await fs.readFile(warningsFile, 'utf8');
-        warningsData = JSON.parse(data);
-      } catch (error) {
-        if (error.code !== 'ENOENT') throw error;
+      // Show modal for reason
+      const modal = new ModalBuilder()
+        .setCustomId('warn_reason')
+        .setTitle('Warn Reason');
+
+      const reasonInput = new TextInputBuilder()
+        .setCustomId('reason')
+        .setLabel('Reason for Warning')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('E.g., Spamming in general chat')
+        .setMaxLength(500)
+        .setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+      await interaction.showModal(modal);
+
+      // Handle modal submission
+      const filter = i => i.customId === 'warn_reason' && i.user.id === interaction.user.id;
+      const submission = await interaction.awaitModalSubmit({ filter, time: 5 * 60 * 1000 }).catch(() => null);
+
+      if (!submission) {
+        return interaction.followUp(
+          createErrorEmbed({
+            description: 'No reason provided. Warning cancelled.',
+          })
+        );
       }
 
-      if (!warningsData[target.id]) warningsData[target.id] = [];
-      warningsData[target.id].push({
+      const reason = submission.fields.getTextInputValue('reason');
+      await submission.deferReply();
+
+      // Log warning
+      const warnings = JSON.parse(await fs.readFile('warnings.json', 'utf-8').catch(() => '{}'));
+      warnings[target.id] = warnings[target.id] || [];
+      warnings[target.id].push({
         reason,
         moderator: interaction.user.tag,
         timestamp: new Date().toISOString(),
       });
+      await fs.writeFile('warnings.json', JSON.stringify(warnings, null, 2));
 
-      await fs.writeFile(warningsFile, JSON.stringify(warningsData, null, 2));
-      logger.info(`Warned ${target.tag} (ID: ${target.id}) by ${interaction.user.tag}, reason: ${reason}`);
+      // Notify user
+      await target.send(
+        createWarningEmbed({
+          title: 'Warning Received',
+          description: `You were warned in **${interaction.guild.name}**.\n**Reason**: ${reason}`,
+        })
+      ).catch(() => logger.warn(`Couldn’t DM warning to ${target.tag}`));
 
-      // Send DM
-      try {
-        await target.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#ff0000')
-              .setTitle('⚠️ Warning Received')
-              .setDescription(
-                `You were warned in **${interaction.guild.name}**.\n**Reason**: ${reason}\n**Moderator**: ${interaction.user.tag}`
-              )
-              .setFooter({ text: 'Bot v1.0.0' })
-              .setTimestamp(),
-          ],
-        });
-        logger.info(`Sent warning DM to ${target.tag}`);
-      } catch (dmError) {
-        logger.warn(`Failed to send warning DM to ${target.tag}: ${dmError.message}`);
-      }
-
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#0099ff')
-            .setTitle('⚠️ Member Warned')
-            .addFields(
-              { name: 'User', value: `${target.tag} (ID: ${target.id})`, inline: true },
-              { name: 'Reason', value: reason, inline: true },
-              { name: 'Moderator', value: interaction.user.tag, inline: true }
-            )
-            .setFooter({ text: 'Use /warnings to view history | Bot v1.0.0' })
-            .setTimestamp(),
-        ],
-      });
+      logger.info(`Warned ${target.tag} by ${interaction.user.tag}: ${reason}`);
+      return submission.editReply(
+        createSuccessEmbed({
+          title: 'User Warned',
+          description: `**${target.tag}** has been warned.`,
+          fields: [{ name: 'Reason', value: reason, inline: false }],
+          thumbnail: target.avatarURL(),
+        })
+      );
     } catch (error) {
-      logger.error(`Error warning ${target.tag} by ${interaction.user.tag}`, error);
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#ff0000')
-            .setTitle('❗ Oops!')
-            .setDescription('An error occurred while issuing the warning.')
-            .setFooter({ text: 'Bot v1.0.0' })
-            .setTimestamp(),
-        ],
-        ephemeral: true,
-      });
+      logger.error(`Error in warn by ${interaction.user.tag}`, error);
+      return interaction.followUp(
+        createErrorEmbed({
+          description: 'Couldn’t issue warning.',
+        })
+      );
     }
   },
 };

@@ -1,34 +1,43 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+// commands/ping.js
+// Displays bot and API latency with a neon-themed embed
+
+const { SlashCommandBuilder } = require('discord.js');
+const { createSuccessEmbed } = require('../utils/embeds');
 const logger = require('../logger');
 
 module.exports = {
-  data: new SlashCommandBuilder().setName('ping').setDescription("Check the bot's latency"),
+  data: new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription('Measure bot and API response times'),
   cooldown: 3,
   async execute(interaction) {
     try {
-      const latency = Date.now() - interaction.createdTimestamp;
-      logger.info(`Ping by ${interaction.user.tag}, latency: ${latency}ms`);
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#0099ff')
-            .setTitle('🏓')
-            .addFields({ name: 'Latency', value: `${latency}ms`, inline: true })
-            .setTimestamp(),
-        ],
-      });
+      // Measure latency
+      const startTime = Date.now();
+      await interaction.deferReply();
+
+      const apiLatency = interaction.client.ws.ping;
+      const botLatency = Date.now() - startTime;
+
+      logger.info(`Ping command by ${interaction.user.tag}`);
+      return interaction.editReply(
+        createSuccessEmbed({
+          title: 'ping',
+          description: 'Response times are lightning-fast!',
+          fields: [
+            { name: '🌩️ API', value: `${apiLatency}ms`, inline: true },
+            { name: '⚡ Bot', value: `${botLatency}ms`, inline: true },
+          ],
+          thumbnail: interaction.client.user.avatarURL(),
+        })
+      );
     } catch (error) {
       logger.error(`Error in ping by ${interaction.user.tag}`, error);
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#ff0000')
-            .setTitle('❗ Troublemaker!')
-            .setDescription('Failed to check latency.')
-            .setTimestamp(),
-        ],
-        ephemeral: true,
-      });
+      return interaction.editReply(
+        createErrorEmbed({
+          description: 'Couldn’t measure latency.',
+        })
+      );
     }
   },
 };
